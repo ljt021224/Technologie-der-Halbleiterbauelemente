@@ -1,129 +1,71 @@
-%% Aufgabe 2: U_th und I_sp aus 4 I-V Kennlinien bestimmen und plotten
-%  - U_th = U bei I = 1 mA (Vorwärtszweig, I>0, U>0) per Interpolation
-%  - I_sp = I bei U = -1 V (Sperrbetrieb, U<0) per Interpolation
-%  - Plot als Messpunkte (ohne Linien), "report style"
-
+% ===== Uth & Isp scatter plots (like your Abbildung 2.5 / 2.6) =====
 clear; clc;
 
-% ========= 1) Dateien einstellen =========
-files  = {'D4_Kennlinie.csv','D5_Kennlinie.csv','D8_Kennlinie.csv','D9_Kennlinie.csv'};
-names  = {'D4','D5','D8','D9'};
-
-% Falls deine CSV mit Semikolon getrennt ist: delimiter = ';' sonst ','
-delimiter = ',';   % ggf. auf ';' ändern
-
-I_target = 1e-3;   % 1 mA
-U_target = -1;     % -1 V
-
-Uth = NaN(1,numel(files));
-Isp = NaN(1,numel(files));
-
-% ========= 2) Auswertung =========
-for k = 1:numel(files)
-    % --- Daten einlesen ---
-    M = readmatrix(files{k}, 'Delimiter', delimiter);
-    U = M(:,1);
-    I = M(:,2);
-
-    % --- U_th bestimmen: U bei I = 1 mA (Vorwärtszweig) ---
-    idxF = (U > 0) & (I > 0);
-    Uf = U(idxF);
-    If = I(idxF);
-
-    if numel(Uf) < 2
-        warning('%s: zu wenige Vorwärts-Punkte für U_th.', names{k});
-        Uth(k) = NaN;
-    else
-        % sortiere nach Strom
-        [Ifs, ord] = sort(If);
-        Ufs = Uf(ord);
-
-        % interp1 braucht eindeutige X-Werte -> Duplikate entfernen
-        [Ifu, ia] = unique(Ifs, 'stable');
-        Ufu = Ufs(ia);
-
-        % nur interpolieren, wenn I_target im Bereich liegt
-        if I_target < min(Ifu) || I_target > max(Ifu)
-            warning('%s: I_target=1mA liegt außerhalb des Messbereichs.', names{k});
-            Uth(k) = NaN;
-        else
-            Uth(k) = interp1(Ifu, Ufu, I_target, 'linear');
-        end
-    end
-
-    % --- I_sp bestimmen: I bei U = -1 V (Sperrbetrieb) ---
-    idxR = (U < 0);
-    Ur = U(idxR);
-    Ir = I(idxR);
-
-    if numel(Ur) < 2
-        warning('%s: zu wenige Sperr-Punkte für I_sp.', names{k});
-        Isp(k) = NaN;
-    else
-        % sortiere nach Spannung
-        [Urs, ord2] = sort(Ur);
-        Irs = Ir(ord2);
-
-        % Duplikate entfernen (zur Sicherheit)
-        [Uru, ia2] = unique(Urs, 'stable');
-        Iru = Irs(ia2);
-
-        Isp(k) = interp1(Uru, Iru, U_target, 'linear', 'extrap');
-    end
-end
-
-% ========= 3) Tabelle ausgeben =========
-T = table(names(:), Uth(:), Isp(:), abs(Isp(:)), ...
-    'VariableNames', {'Diode','Uth_V','Isp_A','absIsp_A'});
-disp(T);
-
-% ========= 4) Plot-Style Einstellungen =========
+names = {'D4','D5','D8','D9'};
 x = 1:numel(names);
-colors = lines(numel(names));
-ms = 10;     % marker size
-lw = 1.6;    % marker edge width
 
-% ========= 5) Plot 1: U_th (linear) =========
-figure(1); clf;
-hold on; box on; grid on;
-set(gca, 'GridAlpha',0.25, 'FontSize',12, 'LineWidth',1.0);
-for k = 1:numel(names)
-    plot(x(k), Uth(k), 'o', ...
-        'MarkerSize', ms, ...
-        'LineWidth', lw, ...
-        'MarkerEdgeColor', colors(k,:), ...
-        'MarkerFaceColor', 'none');
+
+Uth = [0.66, 0.66, 0.66, 0.66];                 % [V]
+Isp = [4.58e-8, 1.26e-7, 6.55e-8, 1.75e-7];      % [A]  (用绝对值)
+
+% ===== 图1：Schwellenspannung Uth =====
+figure(1); clf; hold on; grid on; box on;
+for k = 1:numel(x)
+    plot(x(k), Uth(k), 'o', 'MarkerSize', 9, 'LineWidth', 1.5);
 end
-xlim([0.5, numel(names)+0.5]);
-xticks(x); xticklabels(names);
+xlim([0.5 numel(x)+0.5]);
+set(gca, 'XTick', x, 'XTickLabel', names);
 xlabel('Diode');
-ylabel('Schwellenspannung $U_{th}$ in V', 'Interpreter','latex');
+ylabel('Schwellenspannung U_{th} in V');
+title('Schwellenspannung der Dioden D4, D5, D8, D9');
+set(gca,'FontSize',14)
+axis padded
+lgd.FontSize = 14;   % increase size
 
-% y-range mit Rand
-yr = max(Uth(~isnan(Uth))) - min(Uth(~isnan(Uth)));
-if isempty(yr) || yr==0, yr = 1e-3; end
-ymin = min(Uth(~isnan(Uth))) - 0.15*yr;
-ymax = max(Uth(~isnan(Uth))) + 0.15*yr;
-ylim([ymin ymax]);
+grid on
+grid minor
 
-% ========= 6) Plot 2: I_sp (LOG y-Achse, wie dein Screenshot) =========
-figure(2); clf;
-hold on; box on; grid on; grid minor;
-set(gca, 'YScale','log', 'GridAlpha',0.25, 'FontSize',12, 'LineWidth',1.0);
+ax = gca;
 
-Iabs = abs(Isp);
-for k = 1:numel(names)
-    plot(x(k), Iabs(k), 'o', ...
-        'MarkerSize', ms, ...
-        'LineWidth', lw, ...
-        'MarkerEdgeColor', colors(k,:), ...
-        'MarkerFaceColor', 'none');
+ax.YScale = 'linear';
+
+ax.YMinorTick = 'on';
+ax.YMinorGrid = 'on';
+
+ax.GridLineStyle = '-';        
+ax.MinorGridLineStyle = ':';   
+
+ax.GridAlpha = 0.4;            
+ax.MinorGridAlpha = 0.2;
+
+
+% ===== 图2：Sperrstrom Isp（半对数）=====
+figure(2); clf; hold on; grid on; grid minor; box on;
+for k = 1:numel(x)
+    semilogy(x(k), abs(Isp(k)), 'o', 'MarkerSize', 9, 'LineWidth', 1.5);
 end
-
-xlim([0.5, numel(names)+0.5]);
-xticks(x); xticklabels(names);
+xlim([0.5 numel(x)+0.5]);
+set(gca, 'XTick', x, 'XTickLabel', names);
 xlabel('Diode');
-ylabel('Sperrstrom $|I_{sp}|$ in A', 'Interpreter','latex');
+ylabel('Sperrstrom |I_{sp}| in A');
+title('Sperrstrom der Dioden D4, D5, D8, D9');
 
-% y-limits wie Screenshot (du kannst anpassen)
-ylim([1e-9 1e-4]);
+set(gca,'FontSize',14)
+axis padded
+lgd.FontSize = 14;   % increase size
+
+grid on
+grid minor
+
+ax = gca;
+
+ax.YScale = 'log';
+
+ax.YMinorTick = 'on';
+ax.YMinorGrid = 'on';
+
+ax.GridLineStyle = '-';        
+ax.MinorGridLineStyle = ':';   
+
+ax.GridAlpha = 0.4;            
+ax.MinorGridAlpha = 0.2;
